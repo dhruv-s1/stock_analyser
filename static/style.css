@@ -1,0 +1,7 @@
+body { font-family: Arial; background: #f7f7f7; padding: 20px; }
+.container { max-width: 900px; margin:auto; background:white; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+h1{text-align:center;}
+input[type=text], input[type=password]{padding:8px; margin:5px 0; width:100%;}
+button{padding:10px; width:100%; margin-top:10px; cursor:pointer;}
+.flash-messages{color:red; list-style:none; text-align:center;}
+#chart{margin-top:30px;}

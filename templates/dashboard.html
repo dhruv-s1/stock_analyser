@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+      #guidance-box { margin-top: 22px; background: #f4fbff; padding: 16px; border-radius: 8px; }
+      #chart { margin-top: 20px; }
+      #main-recommendation { margin-top:30px; padding:20px; background:#fff3cd; border-left:6px solid #ffc107; border-radius:8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Welcome, {{ current_user.username }}!</h1>
+    <div style="text-align:right;"><a href="{{ url_for('logout') }}">Logout</a></div>
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <ul class="flash-messages">
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('dashboard') }}">
+        <label for="stock">Enter Stock Symbol (e.g., MSFT, AAPL)</label>
+        <input type="text" name="stock" id="stock" placeholder="Symbol" required>
+        <button type="submit">Analyze</button>
+    </form>
+
+    {% if chart %}
+        <div id="chart">
+            {{ chart|safe }}
+        </div>
+    {% else %}
+        <div id="chart-placeholder" style="margin-top:20px; text-align:center; color:#666;">
+            <em>No chart currently. Enter a valid symbol and click Analyze.</em>
+        </div>
+    {% endif %}
+
+    {% if trade_action %}
+        <div id="main-recommendation">
+            <h2 style="margin:0; font-size:28px; color:#856404;">💰 Recommendation: {{ trade_action }}</h2>
+            <p style="margin-top:10px; font-size:16px; color:#856404;">{{ trade_reason }}</p>
+        </div>
+    {% endif %}
+
+    {% if paragraph_summary %}
+        <div id="paragraph-summary" style="margin-top:20px; background:#eef7e8; padding:12px; border-radius:8px;">
+            <strong>Summary:</strong>
+            <p>{{ paragraph_summary }}</p>
+        </div>
+    {% endif %}
+
+    {% if summary %}
+        <div id="guidance-box">
+            <h3>Guidance & Key Points</h3>
+            <ol>
+            {% for p in summary %}
+              <li>{{ p }}</li>
+            {% endfor %}
+            </ol>
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>

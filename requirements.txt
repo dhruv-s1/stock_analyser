@@ -1,0 +1,9 @@
+flask
+flask_sqlalchemy
+flask_login
+werkzeug
+prophet
+plotly
+pandas
+yahooquery
+gunicorn

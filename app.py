@@ -47,7 +47,7 @@ def register():
         if User.query.filter_by(username=username).first():
             flash("❌ Username already exists!")
             return redirect(url_for('register'))
-        hashed_pw = generate_password_hash(password, method='sha256')
+        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = User(username=username, password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
@@ -236,8 +236,5 @@ def dashboard():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # ensures database tables are created
-
-    # Run Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
+        db.create_all()
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))

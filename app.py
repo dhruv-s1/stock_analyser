@@ -84,20 +84,20 @@ def _hist_to_dataframe(hist):
             hist = next(iter(hist.values()))
         except:
             return pd.DataFrame()
+
     if isinstance(hist, pd.DataFrame):
         df = hist.copy()
-        if isinstance(df.index, pd.MultiIndex):
-            df = df.reset_index()
-        else:
-            df = df.reset_index()
+        df = df.reset_index()
         date_col = next((c for c in df.columns if c.lower() in ['date','datetime','index','level_0']), df.columns[0])
         close_col = next((c for c in df.columns if c.lower() in ['close','adjclose','adj close','closeadj','close_adj']), None)
-        if close_col is None and len(df.columns)>=2:
+        if close_col is None and len(df.columns) >= 2:
             close_col = df.columns[1]
         elif close_col is None:
             return pd.DataFrame()
+
         df2 = pd.DataFrame()
-        df2['ds'] = pd.to_datetime(df[date_col])
+        # convert to datetime (tz-aware) and then remove tz to make tz-naive
+        df2['ds'] = pd.to_datetime(df[date_col], errors='coerce', utc=True).dt.tz_convert(None)
         df2['y'] = pd.to_numeric(df[close_col], errors='coerce')
         df2 = df2.dropna().drop_duplicates(subset='ds').sort_values('ds')
         return df2
@@ -120,8 +120,13 @@ def dashboard():
             ticker = Ticker(stock_symbol)
             hist = ticker.history(period='2y', interval='1d')
             df = _hist_to_dataframe(hist)
+            if df['ds'].dt.tz is not None:
+                try:
+                    df['ds'] = df['ds'].dt.tz_localize(None)
+                except TypeError:
+                    pass
 
-            if df.empty:
+            if df.empty or df['y'].isna().all():
                 flash(f"❌ Could not fetch valid historical data for '{stock_symbol}'.")
                 summary = ["❌ Invalid symbol or no data."]
                 return render_template('dashboard.html', chart=None, summary=summary, paragraph_summary="", trade_action=None, trade_reason=None)

@@ -1,16 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Stock Analyzer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Analyzer</title>
+  <style>
+    * { padding: 0; margin: 0; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --secondary: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --light: #f8fafc;
+      --dark: #1e293b;
+      --gray: #94a3b8;
+      --border: #e2e8f0;
+     }
+
+    body {
+      background-image: linear-gradient(135deg, #243949 10%, #517fa4 100%);
+      width: 98vw;
+      height: 98vh;
+      margin: 1vw;
+      font-family: "Outfit", sans-serif;
+      display: grid;
+      place-items: center;
+    }
+
+    #title-container {
+      color: white;
+      border-radius: 2vmin;
+      text-align: center;
+    }
+
+    #title-container h1 { font-size: 12vw; }
+    #title-container h2 { font-size: 3vw; }
+
+    #button-container { margin: 2vmin; padding: 2vmin; }
+    #signup-button, #signin-button {
+      padding: 1vmin 2vmin;
+      margin: 1vmin;
+      border-radius: 2vmin;
+      border: none;
+      background-color: var(--primary);
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 0 2vmin 0.5vmin var(--dark);
+      cursor: pointer;
+    }
+    #signup-button:hover, #signin-button:hover { background-color: var(--primary-dark); }
+  </style>
 </head>
 <body>
-<div class="container">
-    <h1>Welcome to Stock Analyzer</h1>
-    <p>Analyze stock trends and forecast future prices!</p>
-    <a href="{{ url_for('login') }}">Login</a> | 
-    <a href="{{ url_for('register') }}">Register</a>
-</div>
+  <section id="title-container">
+    <h1>Stock Analyzer</h1>
+    <h2>Market intelligence at your fingertips.</h2>
+    <article id="button-container">
+      <a href="{{ url_for('register') }}">
+        <button id="signup-button">Sign Up!</button>
+      </a>
+      <a href="{{ url_for('login') }}">
+        <button id="signin-button">Sign In!</button>
+      </a>
+    </article>
+  </section>
 </body>
 </html>

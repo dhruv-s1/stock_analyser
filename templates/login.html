@@ -1,28 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Login</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In!</title>
+  <style>
+    * { padding: 0; margin: 0; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --secondary: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --light: #f8fafc;
+      --dark: #1e293b;
+      --gray: #94a3b8;
+      --border: #e2e8f0;
+     }
+
+    body {
+      background-image: linear-gradient(135deg, #243949 10%, #517fa4 100%);
+      width: 98vw;
+      height: 98vh;
+      margin: 1vw;
+      font-family: "Outfit", sans-serif;
+      display: grid;
+      place-items: center;
+    }
+
+    #login-container {
+      width: 60vmin;
+      background-color: #132440;
+      color: white;
+      padding: 2vmin;
+      border-radius: 2vmin;
+      box-shadow: 0 0 2vmin 0.5vmin #132440;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      aspect-ratio: 1/1;
+    }
+
+    #login-container h1 { margin: 0 2vmin; font-size: 3rem; }
+    #login-container h2 { margin: 0 2vmin; font-size: 1.8rem; }
+
+    #username, #password {
+      display: block;
+      margin: 2vmin 0;
+      background-color: #132440;
+      border: none; 
+      color: white;
+      width: 50vmin;
+      padding: 0.8vmin;
+      font-size: 1rem;
+      border-bottom: 2px solid var(--secondary);
+      border-radius: 0.5vmin;
+    }
+
+    input::placeholder { color: var(--secondary); }
+
+    button {
+      margin-top: 2vmin;
+      padding: 1vmin 2vmin;
+      border-radius: 2vmin;
+      border: none;
+      background-color: var(--primary);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { background-color: var(--primary-dark); }
+
+    p {
+      width: 50vmin;
+      text-align: start;
+      margin-bottom: 0.5vmin;
+    }
+
+    .flash-message {
+      color: var(--danger);
+      margin-top: 1vmin;
+    }
+
+  </style>
 </head>
 <body>
-<div class="container">
-    <h1>Login</h1>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        <ul class="flash-messages">
-        {% for message in messages %}
-            <li>{{ message }}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-    {% endwith %}
+  <section id="login-container">
+    <h1>Stock Analyzer</h1>
+    <h2>Sign In!</h2>
+
+    <!-- Form that submits to /login -->
     <form method="POST" action="{{ url_for('login') }}">
-        <input type="text" name="username" placeholder="Username" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Login</button>
+      <p>Username</p>
+      <input id="username" type="text" name="username" placeholder="e.g. John Doe" required>
+
+      <p>Password</p>
+      <input id="password" type="password" name="password" placeholder="e.g. johnDoe@2009" required>
+
+      <button type="submit">Sign In</button>
     </form>
-    <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
-</div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-message">
+          {% for msg in messages %}
+            <p>{{ msg }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <p style="margin-top:2vmin;">Don't have an account? <a href="{{ url_for('register') }}" style="color:var(--primary);">Sign Up</a></p>
+  </section>
 </body>
 </html>

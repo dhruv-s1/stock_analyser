@@ -1,71 +1,269 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-      #guidance-box { margin-top: 22px; background: #f4fbff; padding: 16px; border-radius: 8px; }
-      #chart { margin-top: 20px; }
-      #main-recommendation { margin-top:30px; padding:20px; background:#fff3cd; border-left:6px solid #ffc107; border-radius:8px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Analyzer</title>
+
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+    * { margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --secondary: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --light: #f8fafc;
+      --dark: #1e293b;
+      --gray: #94a3b8;
+      --border: #e2e8f0;
+    }
+
+    .row-nowrap { display: flex; flex-flow: row nowrap; }
+    .col-nowrap { display: flex; flex-flow: column nowrap; }
+    .row-wrap { display: flex; flex-flow: row wrap; }
+
+    body {
+      display: grid;
+      grid-template-rows: 20% 80%;
+      margin: 1vw;
+      width: 98vw;
+      height: 98vh;
+      font-family: "Outfit", sans-serif;
+    }
+
+    #navigation-container, #main-container, header, #page-container {
+      background-color: var(--light);
+      border: 1px solid black;
+    }
+
+    header {
+      padding: 2vmin;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #market-analysis-search {
+      border-radius: 1vw;
+      border: none;
+      color: var(--dark);
+      padding: 2vmin;
+      width: 50vw;
+    }
+    #market-analysis-search::placeholder { color: var(--secondary) }
+
+    #profile-picture {
+      background-color: var(--primary);
+      border-radius: 100px;
+      padding: 1vmin;
+      aspect-ratio: 1/1;
+      text-align: center;
+      color: var(--light);
+      display: grid;
+      place-items: center;
+    }
+    #profile-picture p { font-weight: bolder; }
+
+    #page-container { background-color: var(--border); padding: 2vmin; }
+    #overview-container { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 2vmin; padding: 2vmin 0; }
+
+    .overview-boxes {
+      background-color: var(--light);
+      border-left: 1vmin solid;
+      border-radius: 1vmin;
+      padding-left: 1vmin;
+      box-shadow: 0 0 1.5vmin 0.3vmin var(--gray);
+    }
+    .overview-boxes:hover { box-shadow: 0 0 1.5vmin 0.5vmin var(--gray); }
+    .overview-boxes p { font-size: 2rem; }
+    .overview-boxes h1 { font-size: 1.8rem; }
+    .overview-boxes h6 { font-size: 1.2rem; font-weight: normal; }
+    .overview-boxes:nth-child(1) { border-left-color: var(--primary); }
+    .overview-boxes:nth-child(2) { border-left-color: var(--warning); }
+    .overview-boxes:nth-child(3) { border-left-color: var(--success); }
+    .overview-boxes:nth-child(4) { border-left-color: var(--danger); }
+
+    #market-evolution, #market-segment {
+      background-color: var(--light);
+      padding: 2vmin;
+      border-radius: 1.5vmin;
+      box-shadow: 0 0 1.5vmin 0.5vmin var(--gray);
+    }
+
+    #navigation-container { display: flex; flex-flow: row wrap; justify-content: center; border: none; }
+    #logo-text { font-size: 1.5rem; }
+    #logo-subtext { font-size: 1rem; font-weight: none; }
+    .nav-button {
+      background-color: var(--light);
+      color: var(--dark);
+      padding: 1vmin 2vmin;
+      margin: 2vmin 1vmin;
+      border-radius: 1vmin;
+      white-space: nowrap;
+    }
+    .nav-button:hover { background-color: var(--gray); }
+    .nav-button:active { background-color: var(--secondary); }
+
+    #market-graphs { display: grid; grid-template-columns: 60% 40%; column-gap: 2vmin; margin: 2vmin 0; white-space: nowrap; }
+
+    /* Chart placeholders */
+    #chart { margin-top: 2vmin; }
+  </style>
 </head>
 <body>
-<div class="container">
-    <h1>Welcome, {{ current_user.username }}!</h1>
-    <div style="text-align:right;"><a href="{{ url_for('logout') }}">Logout</a></div>
 
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-        <ul class="flash-messages">
-        {% for message in messages %}
-            <li>{{ message }}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-    {% endwith %}
+<header class="row-nowrap">
+  <div id="logo-container">
+    <h1 id="logo-text">Stock Analyzer</h1>
+    <h2 id="logo-subtext">Market Intelligence</h2>
+  </div>
 
+  <div id="navigation-container">
+    <button class="nav-button">Dashboard</button>
+    <button class="nav-button">Market Analysis</button>
+  </div>
+
+  <div>
     <form method="POST" action="{{ url_for('dashboard') }}">
-        <label for="stock">Enter Stock Symbol (e.g., MSFT, AAPL)</label>
-        <input type="text" name="stock" id="stock" placeholder="Symbol" required>
-        <button type="submit">Analyze</button>
+      <input id="market-analysis-search" type="text" name="stock" placeholder="Search AAPL, NVIDIA, S&P500" required>
+      <button type="submit">Analyze</button>
     </form>
+  </div>
+  <div class="dropdown" style="position:relative;">
+    <button id="profile-picture-btn" style="cursor:pointer;">
+        {{ current_user.username[:2]|upper }}
+    </button>
+    <div id="profile-dropdown" style="display:none; position:absolute; right:0; background:white; border:1px solid var(--gray); border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <a href="{{ url_for('logout') }}" style="display:block; padding:8px 12px; text-decoration:none; color:var(--dark);">Logout</a>
+    </div>
+  </div>
 
-    {% if chart %}
-        <div id="chart">
-            {{ chart|safe }}
-        </div>
-    {% else %}
-        <div id="chart-placeholder" style="margin-top:20px; text-align:center; color:#666;">
-            <em>No chart currently. Enter a valid symbol and click Analyze.</em>
-        </div>
-    {% endif %}
+  <script>
+    const btn = document.getElementById('profile-picture-btn');
+    const dropdown = document.getElementById('profile-dropdown');
 
-    {% if trade_action %}
-        <div id="main-recommendation">
-            <h2 style="margin:0; font-size:28px; color:#856404;">💰 Recommendation: {{ trade_action }}</h2>
-            <p style="margin-top:10px; font-size:16px; color:#856404;">{{ trade_reason }}</p>
-        </div>
-    {% endif %}
+    btn.addEventListener('click', () => {
+      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
 
-    {% if paragraph_summary %}
-        <div id="paragraph-summary" style="margin-top:20px; background:#eef7e8; padding:12px; border-radius:8px;">
-            <strong>Summary:</strong>
-            <p>{{ paragraph_summary }}</p>
-        </div>
-    {% endif %}
+    // Close dropdown if click outside
+    window.addEventListener('click', function(e) {
+        if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+  </script>
 
-    {% if summary %}
-        <div id="guidance-box">
-            <h3>Guidance & Key Points</h3>
-            <ol>
-            {% for p in summary %}
-              <li>{{ p }}</li>
-            {% endfor %}
-            </ol>
-        </div>
-    {% endif %}
-</div>
+</header>
+
+<section id="page-container">
+  <h1>Dashboard</h1>
+
+  <!-- Market Overview -->
+  <section id="market-overview">
+    <h2>Market Overview</h2>
+    <div id="overview-container">
+      <div class="overview-boxes">
+        <p>Last Price</p>
+        <h1>${{ last_actual if last_actual else '-' }}</h1>
+        <h6>Current stock value</h6>
+      </div>
+      <div class="overview-boxes">
+        <p>Predicted 7-day</p>
+        <h1>${{ forecast_next_7 if forecast_next_7 else '-' }}</h1>
+        <h6>Average prediction</h6>
+      </div>
+      <div class="overview-boxes">
+        <p>Predicted 30-day</p>
+        <h1>${{ forecast_next_30 if forecast_next_30 else '-' }}</h1>
+        <h6>Average prediction</h6>
+      </div>
+      <div class="overview-boxes">
+        <p>Recommendation</p>
+        <h1>{{ trade_action if trade_action else '-' }}</h1>
+        <h6>{{ trade_reason if trade_reason else '' }}</h6>
+      </div>
+    </div>
+  </section>
+
+  <!-- Actual vs Predicted Chart -->
+  {% if chart %}
+    <div id="chart">
+      {{ chart|safe }}
+    </div>
+  {% endif %}
+
+  <!-- Market Graphs -->
+  <div id="market-graphs">
+    <div>
+      <h2>Market Evolution</h2>
+      <section id="market-evolution">
+        <form method="POST" action="{{ url_for('dashboard') }}">
+            <label for="start_date">Start Date:</label>
+            <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+            <label for="end_date">End Date:</label>
+            <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+            <input type="hidden" name="stock" value="{{ stock_symbol }}">
+            <button type="submit">Filter</button>
+        </form>
+        {% if filtered_chart %}
+            <div id="filtered-chart">
+                {{ filtered_chart|safe }}
+            </div>
+            {% if filtered_summary %}
+                <div id="filtered-summary" style="margin-top:12px; 
+                     background:#eef7e8; padding:10px; border-radius:8px; 
+                     white-space: normal; word-wrap: break-word; overflow-wrap: break-word;">
+                    <strong>Period Summary:</strong>
+                    <p>{{ filtered_summary }}</p>
+                </div>
+            {% endif %}
+        {% else %}
+            <p>Select a stock and a date range, then click Filter to see the chart.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    </div>
+
+    <div>
+      <h2>Market Segmentation</h2>
+      <section id="market-segment">
+        {% if pie_chart %}
+          {{ pie_chart|safe }}
+        {% else %}
+          <em>No segmentation yet.</em>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  {% if paragraph_summary %}
+    <div id="paragraph-summary" style="margin-top:20px; background:#eef7e8; padding:12px; border-radius:8px;">
+      <strong>Summary:</strong>
+      <p>{{ paragraph_summary }}</p>
+    </div>
+  {% endif %}
+
+  <!-- Guidance -->
+  {% if summary %}
+    <div id="guidance-box" style="margin-top: 22px; background: #f4fbff; padding: 16px; border-radius: 8px;">
+      <h3>Guidance & Key Points</h3>
+      <ol>
+        {% for p in summary %}
+          <li>{{ p }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  {% endif %}
+
+</section>
 </body>
 </html>

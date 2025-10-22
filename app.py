@@ -9,6 +9,7 @@ import pandas as pd
 from yahooquery import Ticker
 import traceback
 import os
+import plotly.express as px
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "fallback_secret_key") 
@@ -109,10 +110,21 @@ def _hist_to_dataframe(hist):
 @login_required
 def dashboard():
     chart = None
+    pie_chart = None
     summary = []
     paragraph_summary = ""
     trade_action = None
     trade_reason = None
+    stock_symbol = None
+    start_date = None
+    end_date = None
+    filtered_chart = None
+    filtered_summary = None  # <<< Initialize here
+
+    # Initialize overview box variables
+    last_actual = "-"
+    forecast_next_7 = "-"
+    forecast_next_30 = "-"
 
     if request.method == 'POST':
         stock_symbol = request.form['stock'].upper().strip()
@@ -120,16 +132,16 @@ def dashboard():
             ticker = Ticker(stock_symbol)
             hist = ticker.history(period='2y', interval='1d')
             df = _hist_to_dataframe(hist)
-            if df['ds'].dt.tz is not None:
-                try:
-                    df['ds'] = df['ds'].dt.tz_localize(None)
-                except TypeError:
-                    pass
 
             if df.empty or df['y'].isna().all():
                 flash(f"❌ Could not fetch valid historical data for '{stock_symbol}'.")
                 summary = ["❌ Invalid symbol or no data."]
-                return render_template('dashboard.html', chart=None, summary=summary, paragraph_summary="", trade_action=None, trade_reason=None)
+                return render_template(
+                    'dashboard.html',
+                    chart=None, pie_chart=None, summary=summary, paragraph_summary="",
+                    trade_action=None, trade_reason=None,
+                    last_actual="-", forecast_next_7="-", forecast_next_30="-"
+                )
 
             # Prophet prediction
             model = Prophet(daily_seasonality=True)
@@ -137,88 +149,161 @@ def dashboard():
             future = model.make_future_dataframe(periods=90)
             forecast = model.predict(future)
 
-            # Plotly chart
+            # Actual & Predicted chart
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='lines', name='Actual'))
             fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Predicted'))
             fig.update_layout(
                 title={'text': f"{stock_symbol} - Actual & 90-day Forecast",'x':0.5,'xanchor':'center'},
                 xaxis_title="Date", yaxis_title="Price",
-                hovermode='x unified', template='plotly_white',
-                margin=dict(l=60,r=60,t=100,b=60)
+                hovermode='x unified', template='plotly_white'
             )
+            chart = plotly.io.to_html(fig, full_html=False, include_plotlyjs='cdn')
 
-            chart = plotly.io.to_html(
-                fig, full_html=False, include_plotlyjs='cdn',
-                config={
-                    'displaylogo':False,
-                    'responsive':True,
-                    'scrollZoom':True,
-                    'displayModeBar':True,
-                    'modeBarButtonsToRemove':[],
-                    'toImageButtonOptions':{'format':'png','filename':f'{stock_symbol}_forecast_chart'},
-                    'modeBarPosition':'topRight'
-                }
-            )
+            # Overview box values
+            last_actual = round(df['y'].iloc[-1], 2)
+            forecast_next_7 = round(forecast['yhat'].iloc[-7:].mean(), 2) if len(forecast) >= 7 else round(forecast['yhat'].iloc[-1],2)
+            forecast_next_30 = round(forecast['yhat'].iloc[-30:].mean(), 2) if len(forecast) >= 30 else round(forecast['yhat'].iloc[-1],2)
 
-            
-            last_actual = df['y'].iloc[-1]
-            forecast_next_7 = forecast['yhat'].iloc[-7:].mean() if len(forecast)>=7 else forecast['yhat'].iloc[-1]
-            forecast_next_30 = forecast['yhat'].iloc[-30:].mean() if len(forecast)>=30 else forecast['yhat'].iloc[-1]
-            forecast_next_90 = forecast['yhat'].iloc[-90:].mean() if len(forecast)>=90 else forecast['yhat'].iloc[-1]
-
+            # Prediction ranges
             max_pred = float(forecast['yhat'].max())
             min_pred = float(forecast['yhat'].min())
 
-            overall_change = ((forecast_next_90-last_actual)/last_actual)*100
-            short_term_change = ((forecast_next_7-last_actual)/last_actual)*100
+            overall_change = ((forecast_next_30 - last_actual)/last_actual)*100
+            short_term_change = ((forecast_next_7 - last_actual)/last_actual)*100
 
+            # Guidance points
             points = []
+            points.append(f"📈 Last actual price: ${last_actual}")
+            points.append(f"🔹 Short-term 7-day forecast: ${forecast_next_7}")
+            points.append(f"🔹 Mid-term 30-day forecast: ${forecast_next_30}")
+            points.append(f"⚡ Predicted range (min→max): ${min_pred:.2f} → ${max_pred:.2f}")
 
-            # Long-term trend
-            if overall_change > 5:
-                points.append(f"📈 Expected rise: ~{overall_change:.2f}% over the next 90 days.")
-            elif overall_change < -5:
-                points.append(f"📉 Expected drop: ~{overall_change:.2f}% over the next 90 days.")
-            else:
-                points.append(f"➡️ Expected minor change: ~{overall_change:.2f}% over the next 90 days.")
-
-            # Short-term trend
-            points.append(f"🔹 Short-term (7 days) trend: {'up' if short_term_change>0 else 'down' if short_term_change<0 else 'flat'} (~{short_term_change:.2f}%).")
-
-            # Predicted range
-            points.append(f"⚡ Predicted range (min→max): ${min_pred:.2f} → ${max_pred:.2f}.")
-
-            # Advice based on trend
-            if overall_change > 5:
-                points.append("💡 Advice: Consider buying or holding if your risk tolerance allows.")
-            elif overall_change < -5:
-                points.append("💡 Advice: Consider reducing exposure or selling; review fundamentals/news.")
-            else:
-                points.append("💡 Advice: No strong signal — consider monitoring or small-scale positions.")
-
-            paragraph_summary = (
-                f"The forecast for {stock_symbol} suggests that over the next 90 days, the stock price may "
-                f"{'rise' if overall_change>0 else 'fall' if overall_change<0 else 'remain roughly stable'}. "
-                f"The short-term 7-day trend indicates potential movements, while the 30-day and 90-day averages "
-                f"provide additional insight into the price trajectory. Always combine these predictions with company fundamentals, "
-                "news, and broader market conditions. Never invest money you cannot afford to lose."
-            )
-
-            # Trade recommendation
+            # Advice
             if overall_change > 5:
                 trade_action = "BUY"
                 trade_reason = f"Forecast predicts a significant rise (~{overall_change:.2f}%)."
+                points.append("💡 Advice: Consider buying or holding if your risk tolerance allows.")
             elif overall_change < -5:
                 trade_action = "SELL"
                 trade_reason = f"Forecast predicts a notable decline (~{overall_change:.2f}%)."
+                points.append("💡 Advice: Consider reducing exposure or selling; review fundamentals/news.")
             else:
                 trade_action = "HOLD"
                 trade_reason = f"Forecast suggests minor change (~{overall_change:.2f}%). Monitor closely."
+                points.append("💡 Advice: No strong signal — consider monitoring or small-scale positions.")
+
+            paragraph_summary = (
+                f"The forecast for {stock_symbol} suggests that over the next 30 days, the stock price may "
+                f"{'rise' if overall_change>0 else 'fall' if overall_change<0 else 'remain roughly stable'}. "
+                f"The 7-day and 30-day averages provide additional insight into the price trajectory."
+            )
 
             summary = points
 
+            # Market Segmentation Pie Chart (dummy sectors for demonstration)
+            # Real Market Segmentation Pie Chart
+            try:
+                market = request.form.get('market', 'NASDAQ')  # Get selected market
+
+                # Select top stocks based on market
+                if market == "NASDAQ":
+                    top_stocks = ['AAPL','MSFT','GOOGL','AMZN','TSLA','NVDA']
+                elif market == "NYSE":
+                    top_stocks = ['JPM','JNJ','XOM','PG','V','BAC']
+                elif market == "NSE":
+                    top_stocks = ['RELIANCE.NS','TCS.NS','HDFCBANK.NS','INFY.NS','ICICIBANK.NS']
+                elif market == "BSE":
+                    top_stocks = ['500325.BO','500180.BO','500209.BO','500016.BO','500112.BO']
+                else:
+                    top_stocks = ['AAPL','MSFT','GOOGL']
+
+                sectors_list = []
+                for sym in top_stocks:
+                    try:
+                        t = Ticker(sym)
+                        prof = t.summary_profile.get(sym, {})
+                        sector = prof.get('sector', 'Unknown')
+                        sectors_list.append(sector)
+                    except:
+                        sectors_list.append('Unknown')
+
+                from collections import Counter
+                sector_counts = Counter(sectors_list)
+                sectors = list(sector_counts.keys())
+                shares = list(sector_counts.values())
+
+                pie_fig = go.Figure(data=[go.Pie(labels=sectors, values=shares, hole=0.3)])
+                pie_fig.update_layout(title=f"{market} Market Segmentation by Sector")
+                pie_chart = plotly.io.to_html(pie_fig, full_html=False, include_plotlyjs='cdn')
+
+            except Exception as e:
+                pie_chart = None
+                print("[ERROR] Pie chart generation failed:", e)
+
+
+
+            # After your existing chart code in the dashboard function
+            # Get date filter from form (if any)
+            # Get date filter from form (if any)
+            start_date = request.form.get('start_date')
+            end_date = request.form.get('end_date')
+            filtered_chart = None
+            filtered_summary = None
+
+            if start_date and end_date:
+                try:
+                    # Filter actual and predicted data
+                    df_filtered = df[(df['ds'] >= pd.to_datetime(start_date)) &
+                                     (df['ds'] <= pd.to_datetime(end_date))]
+                    forecast_filtered = forecast[(forecast['ds'] >= pd.to_datetime(start_date)) &
+                                                 (forecast['ds'] <= pd.to_datetime(end_date))]
+
+                    if not df_filtered.empty and not forecast_filtered.empty:
+                        fig_filtered = go.Figure()
+                        # Actual data
+                        fig_filtered.add_trace(go.Scatter(
+                            x=df_filtered['ds'], y=df_filtered['y'], mode='lines+markers', name='Actual'
+                        ))
+                        # Predicted data
+                        fig_filtered.add_trace(go.Scatter(
+                            x=forecast_filtered['ds'], y=forecast_filtered['yhat'], mode='lines+markers', name='Predicted'
+                        ))
+                        fig_filtered.update_layout(
+                            title={'text': f"{stock_symbol} Actual vs Predicted from {start_date} to {end_date}",
+                                   'x':0.5,'xanchor':'center'},
+                            xaxis_title="Date", yaxis_title="Price",
+                            template='plotly_white'
+                        )
+                        filtered_chart = plotly.io.to_html(fig_filtered, full_html=False, include_plotlyjs='cdn')
+
+                        # Generate textual summary
+                        actual_start = df_filtered['y'].iloc[0]
+                        actual_end = df_filtered['y'].iloc[-1]
+                        pred_start = forecast_filtered['yhat'].iloc[0]
+                        pred_end = forecast_filtered['yhat'].iloc[-1]
+
+                        change_actual = ((actual_end - actual_start) / actual_start) * 100
+                        change_pred = ((pred_end - pred_start) / pred_start) * 100
+
+                        filtered_summary = (
+                            f"From {start_date} to {end_date}, the stock price actually moved from "
+                            f"${actual_start:.2f} to ${actual_end:.2f} ({change_actual:+.2f}%). "
+                            f"The predicted trend for this period was from ${pred_start:.2f} to ${pred_end:.2f} ({change_pred:+.2f}%). "
+                            f"Compare actual vs predicted to assess accuracy and market behavior."
+                        )
+                    else:
+                        filtered_chart = "<p>No data available for the selected range.</p>"
+                        filtered_summary = None
+
+                except Exception as e:
+                    filtered_chart = f"<p>Error generating chart: {e}</p>"
+                    filtered_summary = None
+
+
+
         except Exception as e:
+            import traceback
             tb = traceback.format_exc()
             print("[ERROR]", tb)
             flash(f"❌ Error analyzing stock '{stock_symbol}': {e}")
@@ -226,15 +311,28 @@ def dashboard():
             paragraph_summary = ""
             trade_action = None
             trade_reason = None
+            last_actual = forecast_next_7 = forecast_next_30 = "-"
+            chart = pie_chart = None
 
     return render_template(
-        'dashboard.html',
-        chart=chart,
-        summary=summary,
-        paragraph_summary=paragraph_summary,
-        trade_action=trade_action,
-        trade_reason=trade_reason
-    )
+    'dashboard.html',
+    chart=chart,
+    pie_chart=pie_chart,
+    summary=summary,
+    paragraph_summary=paragraph_summary,
+    trade_action=trade_action,
+    trade_reason=trade_reason,
+    last_actual=last_actual,
+    forecast_next_7=forecast_next_7,
+    forecast_next_30=forecast_next_30,
+    filtered_chart=filtered_chart,
+    filtered_summary=filtered_summary,
+    start_date=start_date or '',
+    end_date=end_date or '',
+    stock_symbol=stock_symbol or ''
+)
+
+
 
 
 
